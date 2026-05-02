@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37216.2
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "coopdx-updater", "coopdx-updater.csproj", "{C1A90FFC-7755-430D-B945-1B1040A0584C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Debug|x64.ActiveCfg = Debug|x64
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Debug|x64.Build.0 = Debug|x64
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Release|x64.ActiveCfg = Release|x64
+		{C1A90FFC-7755-430D-B945-1B1040A0584C}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B4C24C26-8B44-4840-BC34-97EF1B62B296}
+	EndGlobalSection
+EndGlobal
