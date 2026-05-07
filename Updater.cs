@@ -15,15 +15,15 @@ static class Updater {
     static readonly HttpClient HttpClient = new HttpClient();
 
     public static bool CheckForExecutable() {
-        return File.Exists("sm64coopdx.exe");
-    }
-
-    static string GetAppDataPath() {
-        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "coopdx-updater");
+        return File.Exists(Utils.GetGameFilename());
     }
 
     static string GetVersionFilePath() {
-        return Path.Combine(GetAppDataPath(), "version.txt");
+        return Path.Combine(Utils.GetAppDataPath(), "version.txt");
+    }
+
+    static string GetVersionString() {
+        return File.ReadAllText(GetVersionFilePath());
     }
 
     static string GetRemoteVersion() {
@@ -54,14 +54,12 @@ static class Updater {
         }
 
         // fetch local version
-        int major = 1;
-        int minor = 4;
-        int patch = 1;
+        int major, minor, patch = 0;
         if (!File.Exists(GetVersionFilePath())) {
             return true;
         }
 
-        string versionText = File.ReadAllText(GetVersionFilePath());
+        string versionText = GetVersionString();
         if (string.IsNullOrEmpty(versionText)) {
             return true;
         }
@@ -155,7 +153,7 @@ static class Updater {
         using ProgressBar progress = new ProgressBar((int)totalBytes, "Downloading update", options);
 #else
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("Downloading...");
+        Console.Write("\rDownloading...");
 #endif
 
         using (var contentStream = await response.Content.ReadAsStreamAsync())
@@ -167,17 +165,21 @@ static class Updater {
 
             while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0) {
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-
                 downloaded += bytesRead;
-
+                string downloadString = $"{Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB";
 #if WINDOWS
-                progress.Tick((int)downloaded, $"- {Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB");
+                progress.Tick((int)downloaded, $"- {downloadString}");
+#else
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($"\rDownloading... ({downloadString})");
 #endif
             }
         }
 
 #if WINDOWS
         progress.Dispose();
+#else
+        Console.WriteLine();
 #endif
 
         Console.WriteLine("Installing update...");
@@ -196,13 +198,20 @@ static class Updater {
     }
 
     static void InstallLatestVersion() {
+#if MACOS
+        Utils.ExtractFolderFromZip("update.zip", AppContext.BaseDirectory);
+        Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
+        Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
+        Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
+#else
         Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
         Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
         Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
         Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
+#endif
 
-        if (!Directory.Exists(GetAppDataPath())) {
-            Directory.CreateDirectory(GetAppDataPath());
+        if (!Directory.Exists(Utils.GetAppDataPath())) {
+            Directory.CreateDirectory(Utils.GetAppDataPath());
         }
         if (!File.Exists(GetVersionFilePath())) {
             File.Create(GetVersionFilePath()).Close();

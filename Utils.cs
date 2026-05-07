@@ -158,9 +158,27 @@ static class Utils {
         return $"sm64coopdx{extension}";
     }
 
+    public static string GetGamePath() {
+        bool runningFromAppBundle = AppContext.BaseDirectory.Contains(".app/Contents/");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            return runningFromAppBundle ? AppContext.BaseDirectory : "sm64coopdx.app";
+        } else {
+            return GetGameFilename();
+        }
+    }
+
+    public static string GetAppDataPath() {
+        bool runningFromAppBundle = AppContext.BaseDirectory.Contains(".app/Contents/");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            return Path.Combine(AppContext.BaseDirectory, runningFromAppBundle ? "/Contents/MacOS/" : "");
+        } else {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "coopdx-updater");
+        }
+    }
+
     public static void StartGame() {
         Process.Start(new ProcessStartInfo {
-            FileName = GetGameFilename(),
+            FileName = GetGamePath(),
             Arguments = "--skip-update-check",
             UseShellExecute = true
         });
