@@ -1,135 +1,212 @@
-﻿using System;
+﻿using ShellProgressBar;
+using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
+using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Windows.Forms;
+using System.Threading.Tasks;
 
-namespace coopdx_updater {
-    static class Updater {
-        const string VERSION_URL = "https://raw.githubusercontent.com/coop-deluxe/sm64coopdx/refs/heads/main/src/pc/network/version.h";
-        const string VERSION_IDENTIFIER = "#define SM64COOPDX_VERSION \"";
-        const string UPDATE_URL = "https://github.com/coop-deluxe/sm64coopdx/releases/latest/download/sm64coopdx_Windows_OpenGL.zip";
+static class Updater {
+    const string VERSION_URL = "https://raw.githubusercontent.com/coop-deluxe/sm64coopdx/refs/heads/main/src/pc/network/version.h";
+    const string VERSION_IDENTIFIER = "#define SM64COOPDX_VERSION \"";
+    const string UPDATE_URL = "https://github.com/coop-deluxe/sm64coopdx/releases/latest/download/";
 
-        static WebClient webClient = null;
+    static readonly HttpClient HttpClient = new HttpClient();
 
-        public static bool CheckForExecutable() {
-            return File.Exists("sm64coopdx.exe");
+    public static bool CheckForExecutable() {
+        return File.Exists("sm64coopdx.exe");
+    }
+
+    static string GetAppDataPath() {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "coopdx-updater");
+    }
+
+    static string GetVersionFilePath() {
+        return Path.Combine(GetAppDataPath(), "version.txt");
+    }
+
+    static string GetRemoteVersion() {
+        string remoteVersionInfo;
+        try {
+            remoteVersionInfo = HttpClient.GetStringAsync(VERSION_URL).Result;
+        } catch (HttpRequestException ex) {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Failed to retrieve latest remote version. Are you connected to the internet?");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(ex.Message);
+            return "";
         }
 
-        public static bool CheckForUpdate() {
-            if (!File.Exists("sm64coopdx.exe")) {
-                return true;
+        string[] remoteVersionData = remoteVersionInfo.Split('\n');
+        for (int i = 0; i < remoteVersionData.Length; i++) {
+            if (remoteVersionData[i].StartsWith(VERSION_IDENTIFIER)) {
+                return remoteVersionData[i].Substring(VERSION_IDENTIFIER.Length).Replace("\"", "");
             }
+        }
 
-            // fetch local version
-            int major = 1;
-            int minor = 4;
-            int patch = 1;
-            if (File.Exists("sm64coopdx.exe")) {
-                FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo("sm64coopdx.exe");
-                if (versionInfo.FileVersion != null) {
-                    string[] versionData = versionInfo.FileVersion.Substring(1).Split('.');
-                    if (!string.IsNullOrEmpty(versionInfo.FileVersion)) {
-                        major = int.Parse(versionData[0]);
-                        minor = int.Parse(versionData[1]);
-                        if (versionData.Length > 2) {
-                            patch = int.Parse(versionData[2]);
-                        } else {
-                            patch = 0;
-                        }
-                    }
+        return "";
+    }
+
+    public static bool CheckForUpdate() {
+        if (!File.Exists(Utils.GetGameFilename())) {
+            return true;
+        }
+
+        // fetch local version
+        int major = 1;
+        int minor = 4;
+        int patch = 1;
+        if (!File.Exists(GetVersionFilePath())) {
+            return true;
+        }
+
+        string versionText = File.ReadAllText(GetVersionFilePath());
+        if (string.IsNullOrEmpty(versionText)) {
+            return true;
+        }
+
+        string[] versionData = versionText.Substring(1).Split('.');
+        major = int.Parse(versionData[0]);
+        minor = int.Parse(versionData[1]);
+        if (versionData.Length > 2) {
+            patch = int.Parse(versionData[2]);
+        } else {
+            patch = 0;
+        }
+
+        // fetch remote version
+        int remoteMajor = 0;
+        int remoteMinor = 0;
+        int remotePatch = 0;
+        string remoteVersionInfo;
+        try {
+            remoteVersionInfo = HttpClient.GetStringAsync(VERSION_URL).Result;
+        } catch (HttpRequestException ex) {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Failed to retrieve latest remote version. Are you connected to the internet?");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(ex.Message);
+            return false;
+        }
+
+        string[] remoteVersionData = remoteVersionInfo.Split('\n');
+        for (int i = 0; i < remoteVersionData.Length; i++) {
+            if (remoteVersionData[i].StartsWith(VERSION_IDENTIFIER)) {
+                string[] identified = remoteVersionData[i].Substring(VERSION_IDENTIFIER.Length + 1).Replace("\"", "").Split('.');
+                remoteMajor = int.Parse(identified[0]);
+                remoteMinor = int.Parse(identified[1]);
+                if (identified.Length > 2) {
+                    remotePatch = int.Parse(identified[2]);
+                } else {
+                    remotePatch = 0;
                 }
-            }
-
-            // fetch remote version
-            int remoteMajor = 0;
-            int remoteMinor = 0;
-            int remotePatch = 0;
-            string remoteVersionInfo = "";
-            using (WebClient client = new WebClient()) {
-                remoteVersionInfo = client.DownloadString(VERSION_URL);
-            }
-            string[] remoteVersionData = remoteVersionInfo.Split('\n');
-            for (int i = 0; i < remoteVersionData.Length; i++) {
-                if (remoteVersionData[i].StartsWith(VERSION_IDENTIFIER)) {
-                    string[] identified = remoteVersionData[i].Substring(VERSION_IDENTIFIER.Length + 1).Replace("\"", "").Split('.');
-                    remoteMajor = int.Parse(identified[0]);
-                    remoteMinor = int.Parse(identified[1]);
-                    if (identified.Length > 2) {
-                        remotePatch = int.Parse(identified[2]);
-                    } else {
-                        remotePatch = 0;
-                    }
-                    break;
-                }
-            }
-
-            if (remoteMajor != major) {
-                return remoteMajor > major;
-            }
-            if (remoteMinor != minor) {
-                return remoteMinor > minor;
-            }
-
-            return remotePatch > patch;
-        }
-
-        public static void CancelDownload() {
-            if (webClient != null) {
-                webClient.CancelAsync();
-                webClient.Dispose();
-                webClient = null;
-            }
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            Stopwatch sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < 1000) {
-                try {
-                    if (File.Exists("update.zip")) {
-                        File.Delete("update.zip");
-                    }
-                    return;
-                } catch (IOException) { // file is in use still
-                    Thread.Sleep(500);
-                }
+                break;
             }
         }
 
-        public static void DownloadLatestVersion(ProgressBar progressBar, Label info) {
-            progressBar.Style = ProgressBarStyle.Blocks;
-
-            webClient = new WebClient();
-
-            // update progress bar as download proceeds
-            webClient.DownloadProgressChanged += (_, ev) => {
-                progressBar.Value = ev.ProgressPercentage;
-                info.Text = $"Downloaded {Utils.BytesToMegabytes(ev.BytesReceived)} MB / {Utils.BytesToMegabytes(ev.TotalBytesToReceive)} MB";
-            };
-
-            // show message when finished
-            webClient.DownloadFileCompleted += (_, ev) => {
-                info.Text = "Installing update...";
-                InstallLatestVersion();
-                File.Delete("update.zip");
-                info.Text = "Launching game...";
-                Process.Start("sm64coopdx.exe", "--skip-update-check");
-
-                webClient.Dispose();
-                webClient = null;
-                Environment.Exit(0);
-            };
-
-            // start the asynchronous download
-            webClient.DownloadFileAsync(new Uri(UPDATE_URL), "update.zip");
+        if (remoteMajor != major) {
+            return remoteMajor > major;
+        }
+        if (remoteMinor != minor) {
+            return remoteMinor > minor;
         }
 
-        static void InstallLatestVersion() {
-            Utils.ExtractFilesFromZip("update.zip", Application.StartupPath);
-            Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
-            Utils.RefreshFolderFromZip("update.zip", "mods", Application.StartupPath);
-            Utils.RefreshFolderFromZip("update.zip", "dynos", Application.StartupPath);
+        return remotePatch > patch;
+    }
+
+    public static async Task DownloadLatestVersion() {
+        string platform = "";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            if (int.Parse(GetRemoteVersion().Substring(1).Split('.')[1]) < 5) {
+                platform = "Windows_OpenGL";
+            } else {
+                platform = "Windows";
+            }
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
+            if (Utils.IsSteamOS()) {
+                platform = "SteamOS";
+            } else {
+                platform = "Linux";
+            }
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            if (RuntimeInformation.OSArchitecture == Architecture.Arm64) {
+                platform = "macOS_ARM";
+            } else {
+                platform = "macOS_Intel";
+            }
+        } else {
+            throw new PlatformNotSupportedException($"OS '{RuntimeInformation.OSDescription}' not supported");
         }
+
+        using var response = await HttpClient.GetAsync(
+            $"{UPDATE_URL}/sm64coopdx_{platform}.zip",
+            HttpCompletionOption.ResponseHeadersRead);
+
+        response.EnsureSuccessStatusCode();
+
+        long totalBytes = response.Content.Headers.ContentLength ?? 0;
+
+#if WINDOWS
+        var options = new ProgressBarOptions {
+            ForegroundColor = ConsoleColor.Green,
+            EnableTaskBarProgress = true
+        };
+        using ProgressBar progress = new ProgressBar((int)totalBytes, "Downloading update", options);
+#else
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Downloading...");
+#endif
+
+        using (var contentStream = await response.Content.ReadAsStreamAsync())
+        using (var fileStream = File.Create("update.zip")) {
+            byte[] buffer = new byte[8192];
+
+            int bytesRead;
+            long downloaded = 0;
+
+            while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0) {
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+
+                downloaded += bytesRead;
+
+#if WINDOWS
+                progress.Tick((int)downloaded, $"- {Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB");
+#endif
+            }
+        }
+
+#if WINDOWS
+        progress.Dispose();
+#endif
+
+        Console.WriteLine("Installing update...");
+
+        InstallLatestVersion();
+
+        File.Delete("update.zip");
+
+        Console.WriteLine("Launching game...");
+
+        Console.ForegroundColor = ConsoleColor.Gray;
+
+        Utils.StartGame();
+
+        Environment.Exit(0);
+    }
+
+    static void InstallLatestVersion() {
+        Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
+        Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
+        Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
+        Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
+
+        if (!Directory.Exists(GetAppDataPath())) {
+            Directory.CreateDirectory(GetAppDataPath());
+        }
+        if (!File.Exists(GetVersionFilePath())) {
+            File.Create(GetVersionFilePath()).Close();
+        }
+        File.WriteAllText(GetVersionFilePath(), GetRemoteVersion());
     }
 }
