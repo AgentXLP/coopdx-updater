@@ -1,11 +1,9 @@
-﻿using ShellProgressBar;
-using System;
-using System.Diagnostics;
+﻿using System;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
+using ShellProgressBar;
 
 static class Updater {
     const string VERSION_URL = "https://raw.githubusercontent.com/coop-deluxe/sm64coopdx/refs/heads/main/src/pc/network/version.h";
@@ -147,7 +145,7 @@ static class Updater {
 
         long totalBytes = response.Content.Headers.ContentLength ?? 0;
 
-#if WINDOWS
+#if WINDOWS_BUILD
         var options = new ProgressBarOptions {
             ForegroundColor = ConsoleColor.Green,
             EnableTaskBarProgress = true
@@ -170,13 +168,13 @@ static class Updater {
 
                 downloaded += bytesRead;
 
-#if WINDOWS
+#if WINDOWS_BUILD
                 progress.Tick((int)downloaded, $"- {Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB");
 #endif
             }
         }
 
-#if WINDOWS
+#if WINDOWS_BUILD
         progress.Dispose();
 #endif
 

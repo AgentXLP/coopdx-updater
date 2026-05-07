@@ -3,7 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 static class Utils {
     // technically mebibytes
@@ -156,6 +160,44 @@ static class Utils {
         }
 
         return $"sm64coopdx{extension}";
+    }
+
+    // borrowed from coop-compiler
+    public static async Task<string> GetAsync(string url) {
+        using (var client = new HttpClient()) {
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.74 Safari/537.36");
+
+            // HTTP GET
+            HttpResponseMessage response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode) {
+                string result = await response.Content.ReadAsStringAsync();
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    public static string SloppyExtract(string json, string field) {
+        json = json.Replace(" ", "");
+
+        string fieldJson = "\"" + field + "\":";
+        if (!json.Contains(fieldJson)) { return null; }
+
+        string after = json.Split(new string[] { fieldJson }, 2, StringSplitOptions.RemoveEmptyEntries)[1];
+        string[] valueSplit = after.Split('"');
+        if (valueSplit.Count() < 2) { return null; }
+
+        return valueSplit[1];
+    }
+
+    public static async Task<string> GetSloppyAsync(string url, string parameter) {
+        string jsonString = await GetAsync(url);
+        if (jsonString == null) { return null; }
+
+        return SloppyExtract(jsonString, parameter);
     }
 
     public static void StartGame() {
