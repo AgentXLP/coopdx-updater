@@ -165,7 +165,7 @@ static class Utils {
     public static string GetGamePath() {
         bool runningFromAppBundle = AppContext.BaseDirectory.Contains(".app/Contents/");
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-            return runningFromAppBundle ? AppContext.BaseDirectory : "sm64coopdx.app";
+            return Path.Combine(AppContext.BaseDirectory, runningFromAppBundle ? "" : "sm64coopdx.app");
         } else {
             return GetGameFilename();
         }

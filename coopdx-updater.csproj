@@ -3,11 +3,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <InvariantGlobalization>True</InvariantGlobalization>
+    <PublishSingleFile>True</PublishSingleFile>
+    <SelfContained>True</SelfContained>
     <PublishAot>False</PublishAot>
     <PublishTrimmed>False</PublishTrimmed>
     <ApplicationIcon>icon.ico</ApplicationIcon>
-	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	<AssemblyVersion>1.0.1.0</AssemblyVersion>
 	<FileVersion>1.0.1.0</FileVersion>
   </PropertyGroup>
