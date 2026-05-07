@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -196,17 +197,14 @@ static class Updater {
     }
 
     static void InstallLatestVersion() {
-#if MACOS
-        Utils.ExtractFolderFromZip("update.zip", AppContext.BaseDirectory);
-        Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
-        Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
-        Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
-#else
-        Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
-        Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
-        Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
-        Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
-#endif
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            ZipFile.ExtractToDirectory("update.zip", AppContext.BaseDirectory);
+        } else {
+            Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
+            Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
+            Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
+            Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
+        }
 
         if (!Directory.Exists(Utils.GetAppDataPath())) {
             Directory.CreateDirectory(Utils.GetAppDataPath());
