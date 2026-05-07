@@ -8,9 +8,15 @@
     <PublishTrimmed>False</PublishTrimmed>
     <ApplicationIcon>icon.ico</ApplicationIcon>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<AssemblyVersion>1.0.1.0</AssemblyVersion>
+	<FileVersion>1.0.1.0</FileVersion>
   </PropertyGroup>
 
-  <ItemGroup>
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $(RuntimeIdentifier.StartsWith('win'))">
+		<DefineConstants>$(DefineConstants);WINDOWS_BUILD</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
     <Content Include="icon.ico" />
   </ItemGroup>
 
