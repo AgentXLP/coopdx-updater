@@ -1,4 +1,6 @@
 # coopdx-updater
-Really simple launcher / updater for sm64coopdx. Currently only works on Windows natively.
 
-<img width="386" height="128" alt="image" src="https://github.com/user-attachments/assets/30d62d69-72bb-4574-8afb-a1a4fc3156f7" />
+Automatic updater / launcher for sm64coopdx.
+Requires [.NET Runtime 8](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+
+Has support for Windows and Linux officially. macOS support coming later most likely.
