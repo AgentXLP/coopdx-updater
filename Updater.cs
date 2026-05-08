@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -113,12 +114,39 @@ static class Updater {
     }
 
     public static async Task DownloadLatestVersion() {
+        if (Utils.IsRunningFromAppBundle()) {
+            // copy ourself to a temporary directory, start that process with temp flag, exit
+            string tempDir = Path.Combine(Path.GetTempPath(), "coopdx-updater");
+            Directory.CreateDirectory(tempDir);
+
+            string execPath = Environment.ProcessPath;
+            string newExecPath = Path.Combine(tempDir, $"coopdx-updater{Path.GetExtension(execPath)}");
+
+            File.Delete(newExecPath); // make sure it doesn't exist
+            File.Copy(execPath, newExecPath, true);
+
+            // unlike what the warning says, this is unreachable on any platform other than macOS
+            File.SetUnixFileMode(newExecPath, UnixFileMode.UserExecute | UnixFileMode.UserRead);
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Relaunching updater...");
+
+            Process.Start(new ProcessStartInfo {
+                FileName = newExecPath,
+                Arguments = "--temporary",
+                UseShellExecute = true,
+                WorkingDirectory = tempDir
+            });
+
+            Environment.Exit(0);
+        }
+
         string platform = "";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             if (int.Parse(GetRemoteVersion().Substring(1).Split('.')[1]) < 5) {
                 platform = "Windows_OpenGL";
             } else {
-                platform = "Windows";
+                platform = "Windows_DirectX";
             }
         } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
             if (Utils.IsSteamOS()) {
@@ -198,7 +226,13 @@ static class Updater {
 
     static void InstallLatestVersion() {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-            ZipFile.ExtractToDirectory("update.zip", AppContext.BaseDirectory);
+            if (Program.tempUpdater) {
+                Directory.Delete("/Applications/sm64coopdx.app/", true);
+                ZipFile.ExtractToDirectory("update.zip", "/Applications/");
+                return;
+            } else {
+                ZipFile.ExtractToDirectory("update.zip", AppContext.BaseDirectory);
+            }
         } else {
             Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
             Utils.ExtractFolderFromZip("update.zip", "lang", "lang");

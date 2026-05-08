@@ -7,7 +7,7 @@
     <PublishSingleFile>True</PublishSingleFile>
     <SelfContained>True</SelfContained>
     <PublishAot>False</PublishAot>
-    <PublishTrimmed>False</PublishTrimmed>
+    <PublishTrimmed>True</PublishTrimmed>
     <ApplicationIcon>icon.ico</ApplicationIcon>
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	<AssemblyVersion>1.0.1.0</AssemblyVersion>

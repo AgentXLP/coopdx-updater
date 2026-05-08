@@ -14,14 +14,21 @@ static class Program {
     const int SW_SHOW = 5;
 #endif
 
+    public static bool tempUpdater = false;
+
     // funny
     static async Task<bool> CheckForUpdaterUpdate() {
+        if (Utils.IsRunningFromAppBundle() || tempUpdater) { return true; }
         string remoteVersion = await Utils.GetSloppyAsync("https://api.github.com/repos/coop-deluxe/coopdx-updater/releases/latest", "tag_name");
         string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
         return remoteVersion == version;
     }
 
-    static async Task Main() {
+    static async Task Main(string[] args) {
+        if (args.Length > 0 && args[0] == "--temporary") {
+            tempUpdater = true;
+        }
+
 #if WINDOWS_BUILD
         IntPtr h = Process.GetCurrentProcess().MainWindowHandle;
         ShowWindow(h, SW_HIDE);
