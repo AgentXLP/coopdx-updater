@@ -15,18 +15,47 @@ static class Program {
 #endif
 
     public static bool tempUpdater = false;
+    public static bool gameUpdate = false;
+    public static string gamePath = AppContext.BaseDirectory;
 
     // funny
     static async Task<bool> CheckForUpdaterUpdate() {
-        if (Utils.IsRunningFromAppBundle() || tempUpdater) { return true; }
+        if (Utils.IsRunningFromAppBundle() || tempUpdater || gameUpdate) { return true; }
         string remoteVersion = await Utils.GetSloppyAsync("https://api.github.com/repos/coop-deluxe/coopdx-updater/releases/latest", "tag_name");
         string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
         return remoteVersion == version;
     }
 
     static async Task Main(string[] args) {
-        if (args.Length > 0 && args[0] == "--temporary") {
-            tempUpdater = true;
+        for (int i = 0; i < args.Length; i++) {
+            if (args[i] == "--temporary") {
+                tempUpdater = true;
+                continue;
+            }
+
+            if (args[i] == "--game-update") {
+                gameUpdate = true;
+                continue;
+            }
+
+            if (args[i] == "--game-path") {
+                // get string from next argument if we can
+                if (i < args.Length - 1) {
+                    try {
+                        // bit weird, but c# doesn't provide a simple function to validate the path, so this will have to do
+                        string fullPath = Path.GetFullPath(args[i + 1]);
+                        gamePath = fullPath;
+                    } catch {
+                        Console.WriteLine($"Invalid path: {args[i + 1]}");
+                        Environment.Exit(0);
+                    }
+                } else {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Please enter a path after using --game-path");
+                    Environment.Exit(0);
+                }
+                continue;
+            }
         }
 
 #if WINDOWS_BUILD

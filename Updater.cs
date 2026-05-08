@@ -1,4 +1,6 @@
 ﻿using System;
+using System.ComponentModel.Design;
+using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -49,6 +51,14 @@ static class Updater {
     }
 
     public static bool CheckForUpdate() {
+        if (Program.gameUpdate) {
+            return true;
+        }
+
+        if (Program.tempUpdater) {
+            return true;
+        }
+
         if (!File.Exists(Utils.GetGameFilename())) {
             return true;
         }
@@ -114,7 +124,7 @@ static class Updater {
     }
 
     public static async Task DownloadLatestVersion() {
-        if (Utils.IsRunningFromAppBundle()) {
+        if (Utils.IsRunningFromAppBundle() || Program.gameUpdate) {
             // copy ourself to a temporary directory, start that process with temp flag, exit
             string tempDir = Path.Combine(Path.GetTempPath(), "coopdx-updater");
             Directory.CreateDirectory(tempDir);
@@ -125,15 +135,16 @@ static class Updater {
             File.Delete(newExecPath); // make sure it doesn't exist
             File.Copy(execPath, newExecPath, true);
 
-            // unlike what the warning says, this is unreachable on any platform other than macOS
+#if !WINDOWS_BUILD
             File.SetUnixFileMode(newExecPath, UnixFileMode.UserExecute | UnixFileMode.UserRead);
+#endif
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Relaunching updater...");
 
             Process.Start(new ProcessStartInfo {
                 FileName = newExecPath,
-                Arguments = "--temporary",
+                Arguments = $"--temporary --game-path \"{AppContext.BaseDirectory.TrimEnd('\\')}\"",
                 UseShellExecute = true,
                 WorkingDirectory = tempDir
             });
@@ -231,13 +242,17 @@ static class Updater {
                 ZipFile.ExtractToDirectory("update.zip", "/Applications/");
                 return;
             } else {
-                ZipFile.ExtractToDirectory("update.zip", AppContext.BaseDirectory);
+                ZipFile.ExtractToDirectory("update.zip", Program.gamePath);
             }
         } else {
-            Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
-            Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
-            Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
-            Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
+            Utils.ExtractFilesFromZip("update.zip", Program.gamePath);
+            Utils.ExtractFolderFromZip("update.zip", "lang", Path.Combine(Program.gamePath, "lang"));
+            Utils.RefreshFolderFromZip("update.zip", "mods", Program.gamePath);
+            Utils.RefreshFolderFromZip("update.zip", "dynos", Program.gamePath);
+
+            if (Program.tempUpdater) {
+                return;
+            }
         }
 
         if (!Directory.Exists(Utils.GetAppDataPath())) {
