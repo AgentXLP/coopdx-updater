@@ -157,7 +157,7 @@ using ShellProgressBar;
             if (int.Parse(GetRemoteVersion().Substring(1).Split('.')[1]) < 5) {
                 platform = "Windows_OpenGL";
             } else {
-                platform = "Windows_DirectX";
+                platform = "Windows";
             }
         } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
             if (Utils.IsSteamOS()) {
