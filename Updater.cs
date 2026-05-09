@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using ShellProgressBar;
 
-static class Updater {
+ static class Updater {
     const string VERSION_URL = "https://raw.githubusercontent.com/coop-deluxe/sm64coopdx/refs/heads/main/src/pc/network/version.h";
     const string VERSION_IDENTIFIER = "#define SM64COOPDX_VERSION \"";
     const string UPDATE_URL = "https://github.com/coop-deluxe/sm64coopdx/releases/latest/download/";

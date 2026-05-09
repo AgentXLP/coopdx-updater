@@ -181,7 +181,7 @@ static class Utils {
             }
             return gamePath;
         } else {
-            return GetGameFilename();
+            return Path.Combine(Program.gamePath, GetGameFilename());
         }
     }
 
@@ -232,6 +232,7 @@ static class Utils {
     }
 
     public static void StartGame() {
+        Directory.SetCurrentDirectory(Program.gamePath);
         Process.Start(new ProcessStartInfo {
             FileName = GetGamePath(),
             Arguments = "--skip-update-check",
