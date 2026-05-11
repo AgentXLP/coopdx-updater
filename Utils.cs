@@ -7,6 +7,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 static class Utils {
@@ -150,6 +152,10 @@ static class Utils {
         }
     }
 
+    public static bool IsRunningFromAppBundle() {
+        return AppContext.BaseDirectory.Contains(".app/") && RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+    }
+
     public static string GetGameFilename() {
         string extension = "";
 
@@ -160,6 +166,31 @@ static class Utils {
         }
 
         return $"sm64coopdx{extension}";
+    }
+
+    public static string GetGamePath() {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            string gamePath = AppContext.BaseDirectory;
+            if (Program.tempUpdater) {
+                // update is always installed to /Applications/ so directly override var
+                gamePath = Path.Combine("/Applications/",GetGameFilename());
+            } else if (IsRunningFromAppBundle()) {
+                // truncate to .app if we are running from an app bundle
+                int appIndex = gamePath.IndexOf(".app", StringComparison.Ordinal);
+                gamePath = gamePath.Substring(0, appIndex + 4);
+            }
+            return gamePath;
+        } else {
+            return Path.Combine(Program.gamePath, GetGameFilename());
+        }
+    }
+
+    public static string GetAppDataPath() {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            return Path.Combine(AppContext.BaseDirectory, IsRunningFromAppBundle() ? "/Contents/MacOS/" : "");
+        } else {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "coopdx-updater");
+        }
     }
 
     // borrowed from coop-compiler
@@ -201,8 +232,9 @@ static class Utils {
     }
 
     public static void StartGame() {
+        Directory.SetCurrentDirectory(Program.gamePath);
         Process.Start(new ProcessStartInfo {
-            FileName = GetGameFilename(),
+            FileName = GetGamePath(),
             Arguments = "--skip-update-check",
             UseShellExecute = true
         });

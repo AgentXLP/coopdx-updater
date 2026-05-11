@@ -1,11 +1,15 @@
 ﻿using System;
+using System.ComponentModel.Design;
+using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using ShellProgressBar;
 
-static class Updater {
+ static class Updater {
     const string VERSION_URL = "https://raw.githubusercontent.com/coop-deluxe/sm64coopdx/refs/heads/main/src/pc/network/version.h";
     const string VERSION_IDENTIFIER = "#define SM64COOPDX_VERSION \"";
     const string UPDATE_URL = "https://github.com/coop-deluxe/sm64coopdx/releases/latest/download/";
@@ -13,15 +17,15 @@ static class Updater {
     static readonly HttpClient HttpClient = new HttpClient();
 
     public static bool CheckForExecutable() {
-        return File.Exists("sm64coopdx.exe");
-    }
-
-    static string GetAppDataPath() {
-        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "coopdx-updater");
+        return File.Exists(Utils.GetGameFilename());
     }
 
     static string GetVersionFilePath() {
-        return Path.Combine(GetAppDataPath(), "version.txt");
+        return Path.Combine(Utils.GetAppDataPath(), "version.txt");
+    }
+
+    static string GetVersionString() {
+        return File.ReadAllText(GetVersionFilePath());
     }
 
     static string GetRemoteVersion() {
@@ -47,19 +51,25 @@ static class Updater {
     }
 
     public static bool CheckForUpdate() {
+        if (Program.gameUpdate) {
+            return true;
+        }
+
+        if (Program.tempUpdater) {
+            return true;
+        }
+
         if (!File.Exists(Utils.GetGameFilename())) {
             return true;
         }
 
         // fetch local version
-        int major = 1;
-        int minor = 4;
-        int patch = 1;
+        int major, minor, patch = 0;
         if (!File.Exists(GetVersionFilePath())) {
             return true;
         }
 
-        string versionText = File.ReadAllText(GetVersionFilePath());
+        string versionText = GetVersionString();
         if (string.IsNullOrEmpty(versionText)) {
             return true;
         }
@@ -114,6 +124,34 @@ static class Updater {
     }
 
     public static async Task DownloadLatestVersion() {
+        if (Utils.IsRunningFromAppBundle() || Program.gameUpdate) {
+            // copy ourself to a temporary directory, start that process with temp flag, exit
+            string tempDir = Path.Combine(Path.GetTempPath(), "coopdx-updater");
+            Directory.CreateDirectory(tempDir);
+
+            string execPath = Environment.ProcessPath;
+            string newExecPath = Path.Combine(tempDir, $"coopdx-updater{Path.GetExtension(execPath)}");
+
+            File.Delete(newExecPath); // make sure it doesn't exist
+            File.Copy(execPath, newExecPath, true);
+
+#if !WINDOWS_BUILD
+            File.SetUnixFileMode(newExecPath, UnixFileMode.UserExecute | UnixFileMode.UserRead);
+#endif
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Relaunching updater...");
+
+            Process.Start(new ProcessStartInfo {
+                FileName = newExecPath,
+                Arguments = $"--temporary --game-path \"{AppContext.BaseDirectory.TrimEnd('\\')}\"",
+                UseShellExecute = true,
+                WorkingDirectory = tempDir
+            });
+
+            Environment.Exit(0);
+        }
+
         string platform = "";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             if (int.Parse(GetRemoteVersion().Substring(1).Split('.')[1]) < 5) {
@@ -153,7 +191,7 @@ static class Updater {
         using ProgressBar progress = new ProgressBar((int)totalBytes, "Downloading update", options);
 #else
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("Downloading...");
+        Console.Write("\rDownloading...");
 #endif
 
         using (var contentStream = await response.Content.ReadAsStreamAsync())
@@ -165,17 +203,21 @@ static class Updater {
 
             while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0) {
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-
                 downloaded += bytesRead;
-
+                string downloadString = $"{Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB";
 #if WINDOWS_BUILD
-                progress.Tick((int)downloaded, $"- {Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB");
+                progress.Tick((int)downloaded, $"- {downloadString}");
+#else
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($"\rDownloading... ({downloadString})");
 #endif
             }
         }
 
 #if WINDOWS_BUILD
         progress.Dispose();
+#else
+        Console.WriteLine();
 #endif
 
         Console.WriteLine("Installing update...");
@@ -194,13 +236,27 @@ static class Updater {
     }
 
     static void InstallLatestVersion() {
-        Utils.ExtractFilesFromZip("update.zip", AppContext.BaseDirectory);
-        Utils.ExtractFolderFromZip("update.zip", "lang", "lang");
-        Utils.RefreshFolderFromZip("update.zip", "mods", AppContext.BaseDirectory);
-        Utils.RefreshFolderFromZip("update.zip", "dynos", AppContext.BaseDirectory);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            if (Program.tempUpdater) {
+                Directory.Delete("/Applications/sm64coopdx.app/", true);
+                ZipFile.ExtractToDirectory("update.zip", "/Applications/");
+                return;
+            } else {
+                ZipFile.ExtractToDirectory("update.zip", Program.gamePath);
+            }
+        } else {
+            Utils.ExtractFilesFromZip("update.zip", Program.gamePath);
+            Utils.ExtractFolderFromZip("update.zip", "lang", Path.Combine(Program.gamePath, "lang"));
+            Utils.RefreshFolderFromZip("update.zip", "mods", Program.gamePath);
+            Utils.RefreshFolderFromZip("update.zip", "dynos", Program.gamePath);
 
-        if (!Directory.Exists(GetAppDataPath())) {
-            Directory.CreateDirectory(GetAppDataPath());
+            if (Program.tempUpdater) {
+                return;
+            }
+        }
+
+        if (!Directory.Exists(Utils.GetAppDataPath())) {
+            Directory.CreateDirectory(Utils.GetAppDataPath());
         }
         if (!File.Exists(GetVersionFilePath())) {
             File.Create(GetVersionFilePath()).Close();
