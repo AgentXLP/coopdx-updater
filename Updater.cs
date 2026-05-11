@@ -1,13 +1,10 @@
 ﻿using System;
-using System.ComponentModel.Design;
-using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using ShellProgressBar;
 
  static class Updater {
     const string VERSION_URL = "https://raw.githubusercontent.com/coop-deluxe/sm64coopdx/refs/heads/main/src/pc/network/version.h";
@@ -93,7 +90,7 @@ using ShellProgressBar;
         } catch (HttpRequestException ex) {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Failed to retrieve latest remote version. Are you connected to the internet?");
-            Console.ForegroundColor = ConsoleColor.White;
+            Console.ForegroundColor = ConsoleColor.Gray;
             Console.WriteLine(ex.Message);
             return false;
         }
@@ -135,9 +132,9 @@ using ShellProgressBar;
             File.Delete(newExecPath); // make sure it doesn't exist
             File.Copy(execPath, newExecPath, true);
 
-#if !WINDOWS_BUILD
-            File.SetUnixFileMode(newExecPath, UnixFileMode.UserExecute | UnixFileMode.UserRead);
-#endif
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                File.SetUnixFileMode(newExecPath, UnixFileMode.UserExecute | UnixFileMode.UserRead);
+            }
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Relaunching updater...");
@@ -183,16 +180,8 @@ using ShellProgressBar;
 
         long totalBytes = response.Content.Headers.ContentLength ?? 0;
 
-#if WINDOWS_BUILD
-        var options = new ProgressBarOptions {
-            ForegroundColor = ConsoleColor.Green,
-            EnableTaskBarProgress = true
-        };
-        using ProgressBar progress = new ProgressBar((int)totalBytes, "Downloading update", options);
-#else
-        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.ForegroundColor = ConsoleColor.Green;
         Console.Write("\rDownloading...");
-#endif
 
         using (var contentStream = await response.Content.ReadAsStreamAsync())
         using (var fileStream = File.Create("update.zip")) {
@@ -205,21 +194,14 @@ using ShellProgressBar;
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
                 downloaded += bytesRead;
                 string downloadString = $"{Utils.BytesToMegabytes(downloaded)} MB / {Utils.BytesToMegabytes(totalBytes)} MB";
-#if WINDOWS_BUILD
-                progress.Tick((int)downloaded, $"- {downloadString}");
-#else
-                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write($"\rDownloading... ({downloadString})");
-#endif
             }
         }
 
-#if WINDOWS_BUILD
-        progress.Dispose();
-#else
         Console.WriteLine();
-#endif
 
+        Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine("Installing update...");
 
         InstallLatestVersion();
