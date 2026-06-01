@@ -39,6 +39,7 @@ jobs:
         run: dotnet restore coopdx_updater.csproj
 
       - name: Publish
+        shell: bash
         run: |
           dotnet publish -c Release \
             -r ${{ matrix.rid }} \
