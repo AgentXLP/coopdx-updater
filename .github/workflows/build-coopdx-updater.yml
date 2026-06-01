@@ -43,7 +43,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish YourProject.csproj \
+          dotnet publish coopdx_updater.csproj \
             -c Release \
             -r ${{ matrix.rid }} \
             --self-contained true \
@@ -51,6 +51,8 @@ jobs:
             -p:PublishTrimmed=true \
             -p:DebugType=None \
             -p:DebugSymbols=false \
+            -p:InvariantGlobalization=true \
+            -p:EnableCompressionInSingleFile=true \
             -o publish
 
       - name: Upload Artifact
