@@ -9,8 +9,8 @@
 		<BuiltInComInteropSupport>True</BuiltInComInteropSupport>
         <PublishTrimmed>True</PublishTrimmed>
         <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-        <AssemblyVersion>1.0.2.0</AssemblyVersion>
-        <FileVersion>1.0.2.0</FileVersion>
+        <AssemblyVersion>1.0.1.0</AssemblyVersion>
+        <FileVersion>1.0.1.0</FileVersion>
         <StartupObject>Program</StartupObject>
     </PropertyGroup>
 </Project>
