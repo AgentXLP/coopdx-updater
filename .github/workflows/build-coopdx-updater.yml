@@ -18,7 +18,7 @@ jobs:
             rid: linux-x64
             artifact: linux-x64
 
-          - os: macos-13
+          - os: macos-15-intel
             rid: osx-x64
             artifact: macos-intel
 
@@ -43,8 +43,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish coopdx_updater.csproj \
-            -c Release \
+          dotnet publish -c Release \
             -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
@@ -53,7 +52,8 @@ jobs:
             -p:DebugSymbols=false \
             -p:InvariantGlobalization=true \
             -p:EnableCompressionInSingleFile=true \
-            -o publish
+            -o publish \
+            coopdx_updater.csproj
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
