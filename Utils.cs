@@ -33,7 +33,11 @@ static class Utils {
 
                 string destinationPath = Path.Combine(extractPath, entry.Name);
 
-                entry.ExtractToFile(destinationPath, true);
+                try {
+                    entry.ExtractToFile(destinationPath, true);
+                } catch (Exception ex) {
+                    Console.WriteLine($"Failed to extract to file: {ex}");
+                }
             }
         }
     }
