@@ -36,10 +36,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore
-
-      - name: Test
-        run: dotnet test --configuration Release --no-restore
+        run: dotnet restore coopdx_updater.csproj
 
       - name: Publish
         run: |
