@@ -122,6 +122,16 @@ using System.Threading.Tasks;
 
     public static async Task DownloadLatestVersion() {
         if (Utils.IsRunningFromAppBundle() || Program.gameUpdate) {
+            // make sure we can write to this dir
+            bool canWriteToDir = false;
+            try {
+                string tempFilePath = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), Path.GetRandomFileName()); // get temp file path
+                using (FileStream fs = File.Create(tempFilePath, 1, FileOptions.DeleteOnClose)) {} // create a file to delete on close
+                canWriteToDir = true; // cool, no exception, we chill!
+            } catch {
+                canWriteToDir = false; // boohoo, can't write!
+            }
+
             // copy ourself to a temporary directory, start that process with temp flag, exit
             string tempDir = Path.Combine(Path.GetTempPath(), "coopdx-updater");
             Directory.CreateDirectory(tempDir);
@@ -132,20 +142,29 @@ using System.Threading.Tasks;
             File.Delete(newExecPath); // make sure it doesn't exist
             File.Copy(execPath, newExecPath, true);
 
+            // if we are not windows...
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                // ... setup file to have read and execute permissions
                 File.SetUnixFileMode(newExecPath, UnixFileMode.UserExecute | UnixFileMode.UserRead);
             }
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Relaunching updater...");
 
-            Process.Start(new ProcessStartInfo {
+            // create start info
+            ProcessStartInfo startInfo = new ProcessStartInfo {
                 FileName = newExecPath,
                 Arguments = $"--temporary --game-path \"{AppContext.BaseDirectory.TrimEnd('\\')}\"",
                 UseShellExecute = true,
                 WorkingDirectory = tempDir
-            });
+            };
 
+            // on Windows, request elevated permissions if necessary
+            if (!canWriteToDir && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                startInfo.Verb = "runas";
+            }
+
+            Process.Start(startInfo);
             Environment.Exit(0);
         }
 
